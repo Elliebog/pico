@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include "pico_lib/writebuffer.h"
 
 /*** Defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
@@ -15,18 +16,14 @@
 void restore_term_state();
 
 /*** Data ***/
-struct pico_config {
+struct pico_vars {
     struct termios old_termios;
     int screenrows;
     int screencols;
 };
 
-struct pico_config config;
+struct pico_vars config;
 
-struct writebuffer {
-    char *data;
-    int length;
-};
 
 /*** term Settings ***/
 int get_window_size(int *rows, int *cols)
@@ -96,20 +93,6 @@ void setup_term() {
 }
 
 /*** Input Handling ***/
-void append_to_buffer(struct writebuffer *wbuffer, const char *str, int len) {
-    char *newptr = realloc(wbuffer->data, wbuffer->length + len);
-
-    if(newptr == NULL)
-        return;
-    memcpy(&newptr[wbuffer->length], str, len);
-    wbuffer->data = newptr;
-    wbuffer->length += len;
-}
-
-void free_buffer(struct writebuffer *wbuffer) {
-    free(wbuffer->data);
-}
-
 char ed_read_key() {
     int nread;
     char c;
@@ -146,13 +129,16 @@ void ed_refresh_screen() {
 
     //VT100 escape sequence
     //clear screen
+    append_to_buffer(&wbuffer, "\x1b[?25l", 6);
     append_to_buffer(&wbuffer, "\x1b[2J", 4);
+    append_to_buffer(&wbuffer, "\x1b[H", 3);
 
     //Draw rows
     draw_rows(&wbuffer);
     //reset Cursor
     append_to_buffer(&wbuffer,"\x1b[H", 3);
-    
+    append_to_buffer(&wbuffer, "\x1b[?25h", 6);
+
     //write the Buffer
     write(STDOUT_FILENO, wbuffer.data, wbuffer.length);
 
