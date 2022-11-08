@@ -50,7 +50,6 @@ void disable_raw_mode() {
         die("tcsetattr");
 }
 
-
 void enable_raw_mode() {
     //Revert to normal mode on exit
     struct termios raw = config.old_termios;
