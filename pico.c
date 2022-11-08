@@ -12,18 +12,18 @@
 /*** Defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define WBUFF_INIT {NULL, 0}
+#define PICO_VERSION "0.0.1"
 
 void restore_term_state();
 
 /*** Data ***/
 struct pico_vars {
     struct termios old_termios;
-    int screenrows;
-    int screencols;
+    int screenrows, screencols;
+    int cx, cy;
 };
-
+ 
 struct pico_vars config;
-
 
 /*** term Settings ***/
 int get_window_size(int *rows, int *cols)
@@ -96,6 +96,7 @@ void setup_term() {
 char ed_read_key() {
     int nread;
     char c;
+    //Wait until a key is pressed. 
     while((nread = read(STDIN_FILENO, &c, 1)) != 1) {
         if(nread == -1 && errno != EAGAIN)
             die("read");
@@ -117,6 +118,30 @@ void ed_handle_keypress() {
 
 /*** Output ***/
 
+void draw_welcomemsg() {
+    
+    char *lines[3] = {"Welcome to pico", "Press any key to continue" , "Press CTRL+q to quit and CTRL+H for help"};
+    int linecount = sizeof(lines) / sizeof(lines[0]);
+
+    //to center a text: half of the maxspace - half of the text = (maxspace - text) / 2
+    int row = (config.screenrows - linecount) / 2;
+    
+    for (int i = 0; i < linecount; i++) {
+        int col = (config.screencols - strlen(lines[i])) / 2;
+
+        // position cursor in the correct row
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", row, col);
+        write(STDOUT_FILENO, buffer, strlen(buffer));
+
+        write(STDOUT_FILENO, lines[i], strlen(lines[i]));
+        row++;
+    }
+
+    //hide the cursor
+    write(STDOUT_FILENO, "\x1b[?25l", 6);
+}
+
 void draw_rows(struct writebuffer *wbuf) {
     for (int y = 0; y < config.screencols - 1; y++) {
         append_to_buffer(wbuf, "-\r\n", 3);
@@ -135,8 +160,13 @@ void ed_refresh_screen() {
 
     //Draw rows
     draw_rows(&wbuffer);
-    //reset Cursor
-    append_to_buffer(&wbuffer,"\x1b[H", 3);
+
+    //position the cursor 
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "\x1b[%d;%dH", config.cy + 1, config.cx + 1);
+    append_to_buffer(&wbuffer, buffer, strlen(buffer));
+
+    // make Cursor visible
     append_to_buffer(&wbuffer, "\x1b[?25h", 6);
 
     //write the Buffer
@@ -148,6 +178,20 @@ void ed_refresh_screen() {
 /*** Init ***/
 int main() {
     setup_term();
+    
+    //display welcome message
+    draw_welcomemsg();
+
+    //wait until a key is pressed to remove the welcome message
+    char c = ed_read_key();
+    if(c == CTRL_KEY('q')) {
+        write(STDOUT_FILENO, "\x1b[?25h", 6);
+        defaultexit();
+    }
+
+    //todo: Help screen
+
+    //Editor loop
     while (1)
     {
         ed_refresh_screen();
