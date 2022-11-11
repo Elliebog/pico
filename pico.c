@@ -36,9 +36,19 @@ struct pico_ctrl
 {
     struct termios old_termios;
     int screenrows, screencols;
+
+    // View vars
+    int v_offset;
+
+    // Cursor control vars
     int cx, cy;
+    int c_currcol;
+    int c_row;
+
+    // content vars
     struct ed_row *row;
     int numrows;
+
     // if a row is longer than the screen it is placed on the rtabindex = 1
     int rtab_index;
 };
@@ -185,20 +195,78 @@ void ed_move_cursor(char c)
     switch (c)
     {
     case ARROW_DOWN:
-        if (ed_ctrl.cy < ed_ctrl.screenrows - 1)
-            ed_ctrl.cy++;
+        // If there is no row to move down to prevent it
+        if (ed_ctrl.c_row < ed_ctrl.numrows)
+        {
+            if (ed_ctrl.cy < ed_ctrl.screenrows - 1)
+            {
+                // Move cursor one row down
+                ed_ctrl.cy++;
+            }
+            else
+            {
+                // Scroll Down by 1 row
+                ed_ctrl.v_offset++;
+            }
+            ed_ctrl.c_row++;
+
+            if (ed_ctrl.c_currcol > ed_ctrl.row[ed_ctrl.c_row].length)
+                ed_ctrl.cx = ed_ctrl.row[ed_ctrl.c_row].length - 2;
+            else
+                ed_ctrl.cx = ed_ctrl.c_currcol;
+        }
         break;
     case ARROW_UP:
         if (ed_ctrl.cy > 0)
+        {
+            //Move cursor 1 row down
             ed_ctrl.cy--;
-        break;
+            ed_ctrl.c_row--;
+        }
+        else {
+            if(ed_ctrl.v_offset > 0) {
+                //Scroll 1 row down with offset
+                ed_ctrl.v_offset--;
+                ed_ctrl.row--;
+            }
+        }
+            if (ed_ctrl.c_currcol > ed_ctrl.row[ed_ctrl.c_row].length)
+                ed_ctrl.cx = ed_ctrl.row[ed_ctrl.c_row].length - 2;
+            else
+                ed_ctrl.cx = ed_ctrl.c_currcol;
+         break;
     case ARROW_LEFT:
-        if (ed_ctrl.cx > 0)
+        if (ed_ctrl.cx > 0) {
+            //Move cursor to left 
             ed_ctrl.cx--;
+            ed_ctrl.c_currcol = (ed_ctrl.rtab_index * ed_ctrl.screencols) + ed_ctrl.cx;    
+        }
+        else {
+            //Move cursor to the previous lind (end)
+            
+            //check if there is a previous line to move to
+            if(ed_ctrl.c_row > 0) {
+                ed_ctrl.c_row--;
+                ed_ctrl.cy--;
+                ed_ctrl.cx = ed_ctrl.row[ed_ctrl.c_row].length - 2;
+            }
+        }
         break;
     case ARROW_RIGHT:
-        if (ed_ctrl.cx < ed_ctrl.screencols - 1)
+        if(ed_ctrl.cx < ed_ctrl.row[ed_ctrl.c_row].length - 2) {
             ed_ctrl.cx++;
+            ed_ctrl.c_currcol = (ed_ctrl.rtab_index * ed_ctrl.screencols) + ed_ctrl.cx;
+        }
+        else {
+            //Move cursor to the next line start
+
+            //check if there is a line to move to
+            if(ed_ctrl.c_row + 1 < ed_ctrl.numrows) {
+                ed_ctrl.c_row++;
+                ed_ctrl.cy++;
+                ed_ctrl.cx = 0;
+            }
+        }
         break;
     }
 }
@@ -409,10 +477,14 @@ int main(int argc, char *argv[])
 
     // Read file else display welcome message
     if (argc == 2)
+    {
+        log_msg("Opening %s");
         open_file(argv[1]);
+    }
     else
     {
         draw_welcomemsg();
+        // wait until a key is pressed to remove the
         char c = ed_read_key();
         if (c == CTRL_KEY('q'))
         {
@@ -420,8 +492,6 @@ int main(int argc, char *argv[])
             defaultexit();
         }
     }
-
-    // wait until a key is pressed to remove the welcome message
     // todo: Help screen
 
     // Editor loop
