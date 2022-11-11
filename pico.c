@@ -10,9 +10,8 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include <string.h>
+#include <stdarg.h>
 #include "pico_lib/writebuffer.h"
-
-
 
 /*** Defines ***/
 #define CTRL_KEY(k) ((k)&0x1f)
@@ -23,11 +22,12 @@
 #define PICO_VERSION "0.0.1"
 #define EDITOR_NAME "pico"
 
-
+void close_logger();
 void restore_term_state();
 
 /*** Data ***/
-typedef struct ed_row {
+typedef struct ed_row
+{
     char *data;
     int length;
 } ed_row;
@@ -39,12 +39,12 @@ struct pico_ctrl
     int cx, cy;
     struct ed_row *row;
     int numrows;
-    //if a row is longer than the screen it is placed on the rtabindex = 1
+    // if a row is longer than the screen it is placed on the rtabindex = 1
     int rtab_index;
 };
 
 struct pico_ctrl ed_ctrl;
-FILE *log_fp; 
+FILE *log_fp;
 
 enum movekeys
 {
@@ -72,6 +72,7 @@ int get_window_size(int *rows, int *cols)
 
 void die(const char *s)
 {
+    close_logger();
     restore_term_state();
     perror(s);
     exit(1);
@@ -160,7 +161,7 @@ char ed_read_key()
         {
             switch (seq[1])
             {
-            //move keys
+            // move keys
             case 'A':
                 return 'w';
             case 'B':
@@ -184,24 +185,23 @@ void ed_move_cursor(char c)
     switch (c)
     {
     case ARROW_DOWN:
-        if(ed_ctrl.cy < ed_ctrl.screenrows - 1)
+        if (ed_ctrl.cy < ed_ctrl.screenrows - 1)
             ed_ctrl.cy++;
         break;
     case ARROW_UP:
-        if(ed_ctrl.cy > 0)
+        if (ed_ctrl.cy > 0)
             ed_ctrl.cy--;
         break;
     case ARROW_LEFT:
-        if(ed_ctrl.cx > 0)
+        if (ed_ctrl.cx > 0)
             ed_ctrl.cx--;
         break;
     case ARROW_RIGHT:
-        if(ed_ctrl.cx < ed_ctrl.screencols - 1)
+        if (ed_ctrl.cx < ed_ctrl.screencols - 1)
             ed_ctrl.cx++;
         break;
     }
 }
-
 
 void ed_handle_keypress()
 {
@@ -255,40 +255,47 @@ void draw_rows(struct writebuffer *wbuf)
 {
     for (int y = 0; y < ed_ctrl.screenrows - 1; y++)
     {
-        if(y < ed_ctrl.numrows) {
-            ed_row* currow = &ed_ctrl.row[y];
+        if (y < ed_ctrl.numrows)
+        {
+            ed_row *currow = &ed_ctrl.row[y];
             // Calculate start and end indexes based on rtab_index
             int startidx = ed_ctrl.rtab_index * ed_ctrl.screencols;
             int endidx = (ed_ctrl.rtab_index + 1) * ed_ctrl.screencols;
 
-            if(startidx < currow->length) {
-                if(ed_ctrl.rtab_index >= 1) {
-                    //print character to indicate the row started in the previous rtab index
-                    //set foreground color black and background to white
+            if (startidx < currow->length)
+            {
+                if (ed_ctrl.rtab_index >= 1)
+                {
+                    // print character to indicate the row started in the previous rtab index
+                    // set foreground color black and background to white
                     append_to_buffer(wbuf, "\x1b[30m", 5);
                     append_to_buffer(wbuf, "\x1b[47m", 5);
                     append_to_buffer(wbuf, "<", 1);
 
-                    //reset colors
+                    // reset colors
                     append_to_buffer(wbuf, "\x1b[39m", 5);
                     append_to_buffer(wbuf, "\x1b[49m", 5);
                 }
-                
-                //contentdiff = amount of characters left in the row
+
+                // contentdiff = amount of characters left in the row
                 int contentdiff = currow->length - startidx;
                 append_to_buffer(wbuf, &ed_ctrl.row[y].data[startidx], contentdiff);
-                
-                if(currow->length > endidx) {
-                    //print character to indicate the row isn't finished
-                    //set foreground color black and background to white
+
+                if (currow->length > endidx)
+                {
+                    // print character to indicate the row isn't finished
+                    // set foreground color black and background to white
                     append_to_buffer(wbuf, "\x1b[30m", 5);
                     append_to_buffer(wbuf, "\x1b[47m", 5);
                     append_to_buffer(wbuf, ">", 1);
 
-                    //reset colors
+                    // reset colors
                     append_to_buffer(wbuf, "\x1b[39m", 5);
                     append_to_buffer(wbuf, "\x1b[49m", 5);
                 }
+
+                // carriage return for next line
+                append_to_buffer(wbuf, "\r", 1);
             }
         }
     }
@@ -321,43 +328,9 @@ void ed_refresh_screen()
     free_buffer(&wbuffer);
 }
 
-/*** File Loading ***/
-
-void openFile(char *filepath) {
-    FILE *fp;
-    fp = fopen(filepath, "r");
-    
-}
-
-/*** Logging ***/
-
-void close_logger() {
-    fclose(log_fp);
-}
-
-void setup_logger() {
-    log_fp = fopen("logs/testlog.txt", "w+");
-
-    time_t t;
-    struct tm *timeinfo;
-    char buffer[80];
-
-    time(&t);
-    timeinfo = localtime(&t);
-
-    strftime(buffer, 30, "%d-%m-%Y %X", timeinfo);
-
-    fprintf(log_fp, "# Log of %s from %s", EDITOR_NAME, buffer);
-
-    atexit(close_logger);
-}
-
-void log_msg(char* str) {
-    fprintf(log_fp, "%s", str);
-}
-
 /*** Line Data ***/
-void append_row(char *str, int len) {
+void append_row(char *str, int len)
+{
     ed_ctrl.row = realloc(ed_ctrl.row, sizeof(ed_row) * (ed_ctrl.numrows + 1));
 
     int idx = ed_ctrl.numrows;
@@ -369,25 +342,86 @@ void append_row(char *str, int len) {
     ed_ctrl.numrows++;
 }
 
-/*** Init ***/
-int main()
+/*** File Loading ***/
+
+void open_file(char *filepath)
 {
-    setup_term();
+    FILE *fp;
+    fp = fopen(filepath, "r");
 
-    // display welcome message
-    draw_welcomemsg();
-
-    //Setup logger
-    setup_logger();
-
-    // wait until a key is pressed to remove the welcome message
-    char c = ed_read_key();
-    if (c == CTRL_KEY('q'))
+    char *buffer = NULL;
+    size_t buff_cap = 0;
+    int linelen;
+    while ((linelen = getline(&buffer, &buff_cap, fp)) != -1)
     {
-        write(STDOUT_FILENO, "\x1b[?25h", 6);
-        defaultexit();
+        while (linelen > 0 && (buffer[linelen] == '\r' || buffer[linelen] == '\n'))
+        {
+            linelen--;
+        }
+        append_row(buffer, linelen);
+        // write the content to the editor
     }
 
+    fclose(fp);
+    free(buffer);
+}
+
+/*** Logging ***/
+
+void close_logger()
+{
+    fclose(log_fp);
+}
+
+void setup_logger()
+{
+    log_fp = fopen("logs/testlog.txt", "w+");
+
+    time_t t;
+    struct tm *timeinfo;
+    char buffer[80];
+
+    time(&t);
+    timeinfo = localtime(&t);
+
+    strftime(buffer, 30, "%d-%m-%Y %X", timeinfo);
+
+    fprintf(log_fp, "# Log of %s from %s\n", EDITOR_NAME, buffer);
+
+    atexit(close_logger);
+}
+
+void log_msg(const char *msg, ...)
+{
+    va_list args;
+    va_start(args, msg);
+
+    vfprintf(log_fp, msg, args);
+
+    va_end(args);
+}
+
+/*** Init ***/
+int main(int argc, char *argv[])
+{
+    setup_term();
+    setup_logger();
+
+    // Read file else display welcome message
+    if (argc == 2)
+        open_file(argv[1]);
+    else
+    {
+        draw_welcomemsg();
+        char c = ed_read_key();
+        if (c == CTRL_KEY('q'))
+        {
+            write(STDOUT_FILENO, "\x1b[?25h", 6);
+            defaultexit();
+        }
+    }
+
+    // wait until a key is pressed to remove the welcome message
     // todo: Help screen
 
     // Editor loop
