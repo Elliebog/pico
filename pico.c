@@ -217,35 +217,43 @@ void ed_move_cursor(char c)
         }
         break;
     case ARROW_UP:
-        if (ed_ctrl.cy > 0)
+        if (ed_ctrl.c_row > 0)
         {
-            //Move cursor 1 row down
-            ed_ctrl.cy--;
-            ed_ctrl.c_row--;
-        }
-        else {
-            if(ed_ctrl.v_offset > 0) {
-                //Scroll 1 row down with offset
-                ed_ctrl.v_offset--;
-                ed_ctrl.row--;
+            if (ed_ctrl.cy > 0)
+            {
+                // Move cursor 1 row up
+                ed_ctrl.cy--;
+                ed_ctrl.c_row--;
             }
-        }
+            else
+            {
+                if (ed_ctrl.v_offset > 0)
+                {
+                    // Scroll 1 row up with offset
+                    ed_ctrl.v_offset--;
+                    ed_ctrl.c_row--;
+                }
+            }
             if (ed_ctrl.c_currcol > ed_ctrl.row[ed_ctrl.c_row].length)
                 ed_ctrl.cx = ed_ctrl.row[ed_ctrl.c_row].length - 2;
             else
                 ed_ctrl.cx = ed_ctrl.c_currcol;
-         break;
-    case ARROW_LEFT:
-        if (ed_ctrl.cx > 0) {
-            //Move cursor to left 
-            ed_ctrl.cx--;
-            ed_ctrl.c_currcol = (ed_ctrl.rtab_index * ed_ctrl.screencols) + ed_ctrl.cx;    
         }
-        else {
-            //Move cursor to the previous lind (end)
-            
-            //check if there is a previous line to move to
-            if(ed_ctrl.c_row > 0) {
+        break;
+    case ARROW_LEFT:
+        if (ed_ctrl.cx > 0)
+        {
+            // Move cursor to left
+            ed_ctrl.cx--;
+            ed_ctrl.c_currcol = (ed_ctrl.rtab_index * ed_ctrl.screencols) + ed_ctrl.cx;
+        }
+        else
+        {
+            // Move cursor to the previous lind (end)
+
+            // check if there is a previous line to move to
+            if (ed_ctrl.c_row > 0)
+            {
                 ed_ctrl.c_row--;
                 ed_ctrl.cy--;
                 ed_ctrl.cx = ed_ctrl.row[ed_ctrl.c_row].length - 2;
@@ -253,15 +261,18 @@ void ed_move_cursor(char c)
         }
         break;
     case ARROW_RIGHT:
-        if(ed_ctrl.cx < ed_ctrl.row[ed_ctrl.c_row].length - 2) {
+        if (ed_ctrl.cx < ed_ctrl.row[ed_ctrl.c_row].length - 2)
+        {
             ed_ctrl.cx++;
             ed_ctrl.c_currcol = (ed_ctrl.rtab_index * ed_ctrl.screencols) + ed_ctrl.cx;
         }
-        else {
-            //Move cursor to the next line start
+        else
+        {
+            // Move cursor to the next line start
 
-            //check if there is a line to move to
-            if(ed_ctrl.c_row + 1 < ed_ctrl.numrows) {
+            // check if there is a line to move to
+            if (ed_ctrl.c_row + 1 < ed_ctrl.numrows)
+            {
                 ed_ctrl.c_row++;
                 ed_ctrl.cy++;
                 ed_ctrl.cx = 0;
@@ -321,7 +332,7 @@ void draw_welcomemsg()
 
 void draw_rows(struct writebuffer *wbuf)
 {
-    for (int y = 0; y < ed_ctrl.screenrows - 1; y++)
+    for (int y = ed_ctrl.v_offset; y < ed_ctrl.v_offset + ed_ctrl.screenrows - 1; y++)
     {
         if (y < ed_ctrl.numrows)
         {
