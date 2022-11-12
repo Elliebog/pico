@@ -198,7 +198,7 @@ void ed_move_cursor(char c)
         // If there is no row to move down to prevent it
         if (ed_ctrl.c_row < ed_ctrl.numrows)
         {
-            if (ed_ctrl.cy < ed_ctrl.screenrows - 1)
+            if (ed_ctrl.cy < ed_ctrl.screenrows - 2)
             {
                 // Move cursor one row down
                 ed_ctrl.cy++;
@@ -341,7 +341,7 @@ void draw_rows(struct writebuffer *wbuf)
             int startidx = ed_ctrl.rtab_index * ed_ctrl.screencols;
             int endidx = (ed_ctrl.rtab_index + 1) * ed_ctrl.screencols;
 
-            if (startidx < currow->length)
+            if (startidx <= currow->length)
             {
                 if (ed_ctrl.rtab_index >= 1)
                 {
