@@ -332,7 +332,7 @@ void draw_welcomemsg()
 
 void draw_rows(struct writebuffer *wbuf)
 {
-    for (int y = ed_ctrl.v_offset; y < ed_ctrl.v_offset + ed_ctrl.screenrows - 1; y++)
+    for (int y = ed_ctrl.v_offset; y < ed_ctrl.v_offset + ed_ctrl.screenrows; y++)
     {
         if (y < ed_ctrl.numrows)
         {
